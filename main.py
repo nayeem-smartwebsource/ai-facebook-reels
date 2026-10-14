@@ -66,17 +66,24 @@ def upload_to_facebook_as_draft(video_path):
     with open(video_path, 'rb') as f:
         payload = {
             'description': '🤖 AI Generated Story #shorts #stories #motivation',
-            'published': 'false',  # <--- Keeps it as an unpublished draft!
+            'published': 'false',  # Keeps it as an unpublished draft
             'access_token': FB_PAGE_ACCESS_TOKEN
         }
         files = {'source': f}
         response = requests.post(url, data=payload, files=files)
+        
+        # Print full response text to debug and see what Facebook returned
+        print(f"Facebook API Status Code: {response.status_code}")
+        print(f"Facebook API Raw Response: {response.text}")
+        
         result = response.json()
         
         if "id" in result:
-            print(f"Success! Video uploaded as draft. Facebook Video ID: {result['id']}")
+            video_id = result['id']
+            print(f"\n✅ SUCCESS! Your Video ID is: {video_id}")
+            print(f"👉 Direct Link to Review/Publish: https://www.facebook.com/{FB_PAGE_ID}/videos/{video_id}\n")
         else:
-            print("Failed to upload to Facebook:", result)
+            print("❌ Failed to get Video ID. Check error message above.")
 
 if __name__ == "__main__":
     story_script = generate_story()
