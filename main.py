@@ -18,7 +18,7 @@ def generate_story():
         "and return ONLY the raw script text without markdown formatting or headings."
     )
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-3.8-flash",
         contents=prompt,
     )
     return response.text.strip()
@@ -33,10 +33,8 @@ def create_video(script_text):
     duration = audio_clip.duration
 
     print("Rendering video file (Vertical 1080x1920 format)...")
-    # Create a vertical mobile-friendly dark slate background canvas
     bg_clip = ColorClip(size=(1080, 1920), color=(15, 23, 42), duration=duration)
     
-    # Add text overlay configuration (Centered text caption)
     txt_clip = TextClip(
         script_text, 
         fontsize=48, 
@@ -47,12 +45,10 @@ def create_video(script_text):
     )
     txt_clip = txt_clip.set_duration(duration).set_position('center')
 
-    # Composite audio and visuals
     video = CompositeVideoClip([bg_clip, txt_clip])
     video = video.set_audio(audio_clip)
     
     output_path = "final_output.mp4"
-    # Write video using lightweight compatible parameters for Linux runners
     video.write_videofile(
         output_path, 
         fps=24, 
@@ -70,7 +66,7 @@ def upload_to_facebook_as_draft(video_path):
     with open(video_path, 'rb') as f:
         payload = {
             'description': '🤖 AI Generated Story #shorts #stories #motivation',
-            'published': 'false',  # <--- CRITICAL: Keeps it as an unpublished draft!
+            'published': 'false',  # <--- Keeps it as an unpublished draft!
             'access_token': FB_PAGE_ACCESS_TOKEN
         }
         files = {'source': f}
