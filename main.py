@@ -21,8 +21,8 @@ def generate_story():
         "and return ONLY the raw script text without markdown formatting or headings."
     )
     
-    # Try preferred model first, then fallback model if 503 server error occurs
-    models_to_try = ["gemini-3.8-flash", "gemini-1.5-flash"]
+    # Try gemini-2.5-flash first, then gemini-3.8-flash as fallback
+    models_to_try = ["gemini-2.5-flash", "gemini-3.8-flash"]
     
     for model_name in models_to_try:
         print(f"Trying model: {model_name}...")
