@@ -3,7 +3,9 @@ import time
 import requests
 from google import genai
 from gtts import gTTS
-from moviepy.editor import AudioFileClip, CompositeVideoClip, ColorClip, TextClip
+from moviepy.editor import AudioFileClip, CompositeVideoClip, ImageClip, ColorClip
+from PIL import Image, ImageDraw, ImageFont
+import textwrap
 
 # Initialize Gemini Client
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
@@ -30,12 +32,46 @@ def generate_story():
         except Exception as e:
             print(f"Attempt {attempt + 1} failed due to server error: {e}")
             if attempt < max_retries - 1:
-                sleep_time = (attempt + 1) * 10  # 10s, then 20s delay
+                sleep_time = (attempt + 1) * 10
                 print(f"Server busy. Retrying in {sleep_time} seconds...")
                 time.sleep(sleep_time)
             else:
-                print("Max retries reached. Raising exception.")
                 raise e
+
+def create_text_image(text, image_path="text_overlay.png", img_size=(1080, 1920)):
+    # Create a transparent image for drawing text
+    img = Image.new("RGBA", img_size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    
+    # Wrap text to fit nicely on vertical mobile screens
+    wrapped_text = textwrap.fill(text, width=32)
+    
+    # Load a clean font (fallback to default if custom font isn't found)
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 54)
+    except IOError:
+        font = ImageFont.load_default()
+
+    # Calculate text bounding box for centering
+    left, top, right, bottom = draw.multiline_textbbox((0, 0), wrapped_text, font=font, spacing=15, align="center")
+    text_width = right - left
+    text_height = bottom - top
+    
+    x = (img_size[0] - text_width) / 2
+    y = (img_size[1] - text_height) / 2
+
+    # Draw semi-transparent dark background box behind text for readability
+    padding = 40
+    draw.rounded_rectangle(
+        [x - padding, y - padding, x + text_width + padding, y + text_height + padding],
+        radius=20,
+        fill=(15, 23, 42, 220) # Dark slate background tint
+    )
+
+    # Draw centered multi-line text
+    draw.multiline_text((x, y), wrapped_text, fill="white", font=font, spacing=15, align="center")
+    img.save(image_path)
+    return image_path
 
 def create_video(script_text):
     print("Synthesizing voiceover audio...")
@@ -49,15 +85,9 @@ def create_video(script_text):
     print("Rendering video file (Vertical 1080x1920 format)...")
     bg_clip = ColorClip(size=(1080, 1920), color=(15, 23, 42), duration=duration)
     
-    txt_clip = TextClip(
-        script_text, 
-        fontsize=48, 
-        color='white', 
-        size=(900, None), 
-        method='caption',
-        font='Arial'
-    )
-    txt_clip = txt_clip.set_duration(duration).set_position('center')
+    # Generate text overlay graphic via Pillow
+    text_img_path = create_text_image(script_text)
+    txt_clip = ImageClip(text_img_path).set_duration(duration).set_position('center')
 
     video = CompositeVideoClip([bg_clip, txt_clip])
     video = video.set_audio(audio_clip)
