@@ -21,38 +21,40 @@ def generate_story():
         "and return ONLY the raw script text without markdown formatting or headings."
     )
     
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            response = client.models.generate_content(
-                model="gemini-3.8-flash",
-                contents=prompt,
-            )
-            return response.text.strip()
-        except Exception as e:
-            print(f"Attempt {attempt + 1} failed due to server error: {e}")
-            if attempt < max_retries - 1:
-                sleep_time = (attempt + 1) * 10
-                print(f"Server busy. Retrying in {sleep_time} seconds...")
-                time.sleep(sleep_time)
-            else:
-                raise e
+    # Try preferred model first, then fallback model if 503 server error occurs
+    models_to_try = ["gemini-3.8-flash", "gemini-1.5-flash"]
+    
+    for model_name in models_to_try:
+        print(f"Trying model: {model_name}...")
+        max_retries = 2
+        for attempt in range(max_retries):
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                )
+                if response and response.text:
+                    return response.text.strip()
+            except Exception as e:
+                print(f"[{model_name}] Attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(5)
+                else:
+                    print(f"Switching away from {model_name} due to persistent errors...")
+                    
+    raise Exception("All Gemini models are currently unavailable due to high server demand. Please try again later.")
 
 def create_text_image(text, image_path="text_overlay.png", img_size=(1080, 1920)):
-    # Create a transparent image for drawing text
     img = Image.new("RGBA", img_size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     
-    # Wrap text to fit nicely on vertical mobile screens
     wrapped_text = textwrap.fill(text, width=32)
     
-    # Load a clean font (fallback to default if custom font isn't found)
     try:
         font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 54)
     except IOError:
         font = ImageFont.load_default()
 
-    # Calculate text bounding box for centering
     left, top, right, bottom = draw.multiline_textbbox((0, 0), wrapped_text, font=font, spacing=15, align="center")
     text_width = right - left
     text_height = bottom - top
@@ -60,15 +62,13 @@ def create_text_image(text, image_path="text_overlay.png", img_size=(1080, 1920)
     x = (img_size[0] - text_width) / 2
     y = (img_size[1] - text_height) / 2
 
-    # Draw semi-transparent dark background box behind text for readability
     padding = 40
     draw.rounded_rectangle(
         [x - padding, y - padding, x + text_width + padding, y + text_height + padding],
         radius=20,
-        fill=(15, 23, 42, 220) # Dark slate background tint
+        fill=(15, 23, 42, 220)
     )
 
-    # Draw centered multi-line text
     draw.multiline_text((x, y), wrapped_text, fill="white", font=font, spacing=15, align="center")
     img.save(image_path)
     return image_path
@@ -85,7 +85,6 @@ def create_video(script_text):
     print("Rendering video file (Vertical 1080x1920 format)...")
     bg_clip = ColorClip(size=(1080, 1920), color=(15, 23, 42), duration=duration)
     
-    # Generate text overlay graphic via Pillow
     text_img_path = create_text_image(script_text)
     txt_clip = ImageClip(text_img_path).set_duration(duration).set_position('center')
 
@@ -110,7 +109,7 @@ def upload_to_facebook_as_draft(video_path):
     with open(video_path, 'rb') as f:
         payload = {
             'description': '🤖 AI Generated Story #shorts #stories #motivation',
-            'published': 'false',  # Keeps it as an unpublished draft
+            'published': 'false',
             'access_token': FB_PAGE_ACCESS_TOKEN
         }
         files = {'source': f}
