@@ -72,7 +72,7 @@ def upload_to_facebook_as_draft(video_path):
         files = {'source': f}
         response = requests.post(url, data=payload, files=files)
         
-        # Print full response text to debug and see what Facebook returned
+        # Print full response to console logs for easy debugging
         print(f"Facebook API Status Code: {response.status_code}")
         print(f"Facebook API Raw Response: {response.text}")
         
@@ -80,8 +80,10 @@ def upload_to_facebook_as_draft(video_path):
         
         if "id" in result:
             video_id = result['id']
-            print(f"\n✅ SUCCESS! Your Video ID is: {video_id}")
-            print(f"👉 Direct Link to Review/Publish: https://www.facebook.com/{FB_PAGE_ID}/videos/{video_id}\n")
+            print(f"\n==================================================")
+            print(f"✅ SUCCESS! Your Video ID is: {video_id}")
+            print(f"👉 Direct Link to Review/Publish: https://www.facebook.com/{FB_PAGE_ID}/videos/{video_id}")
+            print(f"==================================================\n")
         else:
             print("❌ Failed to get Video ID. Check error message above.")
 
