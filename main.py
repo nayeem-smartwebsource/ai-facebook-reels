@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 from google import genai
 from gtts import gTTS
@@ -17,11 +18,24 @@ def generate_story():
         "story script suitable for a video voiceover. Keep it engaging, fast-paced, "
         "and return ONLY the raw script text without markdown formatting or headings."
     )
-    response = client.models.generate_content(
-        model="gemini-3.8-flash",
-        contents=prompt,
-    )
-    return response.text.strip()
+    
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model="gemini-3.8-flash",
+                contents=prompt,
+            )
+            return response.text.strip()
+        except Exception as e:
+            print(f"Attempt {attempt + 1} failed due to server error: {e}")
+            if attempt < max_retries - 1:
+                sleep_time = (attempt + 1) * 10  # 10s, then 20s delay
+                print(f"Server busy. Retrying in {sleep_time} seconds...")
+                time.sleep(sleep_time)
+            else:
+                print("Max retries reached. Raising exception.")
+                raise e
 
 def create_video(script_text):
     print("Synthesizing voiceover audio...")
@@ -72,7 +86,6 @@ def upload_to_facebook_as_draft(video_path):
         files = {'source': f}
         response = requests.post(url, data=payload, files=files)
         
-        # Print full response to console logs for easy debugging
         print(f"Facebook API Status Code: {response.status_code}")
         print(f"Facebook API Raw Response: {response.text}")
         
